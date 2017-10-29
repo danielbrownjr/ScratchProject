@@ -1,0 +1,108 @@
+---
+title: "Using R to determine significance between data points"
+output: html_notebook
+bibliography: ref.bib
+author: "Daniel R Brown Jr."
+---
+# Abstract
+Utilizing the dataset provided from the Scratch community[@bmh16], we are able to determine that there is a statistically significant exponential correlation between *view* count and *remix* status, as well as a correlation between *Loves* and *Views + Sprites*. Finally, we will visualize these relations using **ggplot2**.
+
+# Data Preprocessing
+## Importing Libraries
+Start by importing the library for **tidyverse** which contains various data science tools like **ggplot2** and **dpylr**, and **RColorBrewer**, because pretty colors are good.
+```{r}
+library(tidyverse)
+library(RColorBrewer)
+```
+
+## Importing dataset into $R$
+```{r}
+df <- read.csv("250750views.csv")
+```
+
+## Selecting relevent variables and renaming them
+```{r}
+dataset <- dplyr::select(df, "is_remixed", "sprites_website", 
+                           "scripts_website", "viewers_website", 
+                           "lovers_website")
+names(dataset) <- c("remix.status", "sprites", "scripts", 
+                      "views", "loves")
+```
+
+# Conducting analysis
+## Performing linear regression to correlation between remix status and other variables.
+### Attempt One
+First, we test all variables against remix status to determine if there is a correlation between Remix status and other variables.
+```{r}
+regressor <- lm(formula = remix.status ~., data = dataset)
+summary(regressor)
+```
+Notice that there are two variables with $P_{r} >\left|t\right|$ values less than 0.05. If we choose that as the significance level, we can re-run the linear regression test and see if we get better results. 
+
+### Attempt Two
+We will remove the Loves variable and rerun. (Potentially, the Loves variable could be masking the Scripts variable, so we will include it in the next test)
+```{r}
+regressor2 <- lm(formula = remix.status ~ views + sprites + scripts,
+                data = dataset)
+summary(regressor2)
+```
+We can conclude that the Sprites variable is not statistically significant and remove it to perform the test again.
+
+### Attempt Three
+```{r}
+regressor3 <- lm(formula = remix.status ~ views + scripts, data = dataset)
+summary(regressor3)
+```
+Now we can see that the only variable with statistical significance is Views. We will perform regression once more for our final value.
+
+### Attempt Four
+```{r}
+regressor4 <- lm(formula = remix.status ~ views, data = dataset)
+summary(regressor4)
+```
+
+The significance code is much much less than 0.001 and can be deemed as statistically significant. The $R^{2}$ and $R^{2}_{\textrm{adjusted}}$ values are less than 1 implying that there is not a *linear* relationship between the two variables, but the $p$-value being so low shows that there is a relation between the two.
+
+### Testing for exponential correlation
+Below we have taken the dataset variables for Remix Status and counted the total amount of remixes per number of views. We then take the log of Remix Totals and perform linear regression against it.
+```{r}
+data.log <- aggregate(dataset$remix.status, by=list(dataset$views), FUN=sum)
+names(data.log) <- c("views", "remix.totals")
+log.reg <- lm(formula = log(remix.totals) ~ views, data = test)
+summary(log.reg)
+```
+Our $p$-value is still good and we have an $R^{2}$ closer to 1. This leads us to the conclusion that the variables are related *exponentially*.
+
+## Determining correlation between Loves and other variables
+We can run tests as before to determine which variables will be statistically significant as before.
+```{r}
+love.reg <- lm(formula = loves ~., data = dataset)
+love.reg2 <- lm(formula = loves ~ views + sprites + scripts, 
+                data = dataset)
+love.reg3 <- lm(formula = loves ~ views + sprites, 
+                data = dataset)
+summary(love.reg3)
+```
+This shows that we have statistical significance between Loves, Views, and Sprites.
+  
+# Visualizing Data
+Finally, we shall use **ggplot** to visualize the data that we have looked at so far
+before importing the csv into *Tableau*.
+```{r}
+ggplot(data = dataset, aes(x = views, fill = remix.status)) + 
+  geom_histogram(color = "black", alpha = 0.4) + ggtitle("Views") + xlab("Views") +
+  ylab("Counts") + scale_fill_brewer(palette = "Paired") + theme(line = element_line(size = 1))
+ggplot(data = data.log, aes(x = views, y = log(remix.totals), 
+                            color = I("Blue"))) +
+  geom_point() + geom_smooth(color = I("Green")) + 
+  ggtitle("Log Remix Totals vs. Views") + xlab("Views") +
+  ylab("Log Remix") 
+```
+
+# Conclusion
+The Scratch data obtained shows that there is an exponential correlation between Remix status and Views. We also learned that there is a relationship between Loves and Views + Sprites. These findings will make our analysis with Tableau much more meaningful.
+
+[![License](https://img.shields.io/badge/LICENSE-MIT-red.svg)](./License)[![Facebook](https://img.shields.io/badge/facebook-Daniel-red.svg?style=social)](https://www.facebook.com/chaseafterstart2006)[![twitter](https://img.shields.io/badge/twitter-chaseafterstart-red.svg?style=social)](https://twitter.com/ChaseAfterStart)[![Linkedin](https://img.shields.io/badge/Linkedin-Daniel-red.svg?style=social)](http://tiny.cc/danielbrown)  
+
+
+# References
